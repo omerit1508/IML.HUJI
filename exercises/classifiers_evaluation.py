@@ -4,6 +4,7 @@ from utils import *
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from math import atan2, pi
+pio.renderers.default= "browser"
 
 
 def load_dataset(filename: str) -> Tuple[np.ndarray, np.ndarray]:
@@ -38,14 +39,28 @@ def run_perceptron():
     """
     for n, f in [("Linearly Separable", "linearly_separable.npy"), ("Linearly Inseparable", "linearly_inseparable.npy")]:
         # Load dataset
-        raise NotImplementedError()
+        X, Y = load_dataset("C:\\Users\\omeri\\Documents\\Omer\\Semester D\\IML\\IML.HUJI\\datasets\\" + f)
+        # print(X)
+        # print(Y)
+        def callaback_func(per:Perceptron, x:np.ndarray,y:int):
+            losses.append(per.loss(X, Y))
+            # calculate the loss in the fit
+
 
         # Fit Perceptron and record loss in each fit iteration
         losses = []
-        raise NotImplementedError()
+        per = Perceptron(include_intercept=True,callback=callaback_func) #maybe not false
+        per.fit(X, Y)
 
         # Plot figure of loss as function of fitting iteration
-        raise NotImplementedError()
+        # print(losses)
+        fig = go.Figure((go.Scatter(x=np.linspace(1, 1000, 1000),
+                                    y=np.asarray(losses), mode="lines",
+                                    name="Mean Prediction",
+                                    marker=dict(color="blue", )),))
+        fig.update_layout(
+            title_text='Question 3.1 - Loss as a function of iterations')
+        fig.show()
 
 
 def get_ellipse(mu: np.ndarray, cov: np.ndarray):
@@ -79,28 +94,100 @@ def compare_gaussian_classifiers():
     """
     for f in ["gaussian1.npy", "gaussian2.npy"]:
         # Load dataset
-        raise NotImplementedError()
+        X, Y = load_dataset("C:\\Users\\omeri\\Documents\\Omer\\Semester D\\IML\\IML.HUJI\\datasets\\" + f)
+
 
         # Fit models and predict over training set
-        raise NotImplementedError()
+        lda = LDA()
+        lda.fit(X, Y)
+        lda_pred = lda.predict(X)
+        GNB = GaussianNaiveBayes()
+        GNB.fit(X, Y)
+        gnb_pred = GNB.predict(X)
+
 
         # Plot a figure with two suplots, showing the Gaussian Naive Bayes predictions on the left and LDA predictions
         # on the right. Plot title should specify dataset used and subplot titles should specify algorithm and accuracy
         # Create subplots
         from IMLearn.metrics import accuracy
-        raise NotImplementedError()
+        lda_acc = accuracy(Y, lda_pred)
+        gnb_acc = accuracy(Y, gnb_pred)
+        print(lda_acc, gnb_acc)
 
         # Add traces for data-points setting symbols and colors
-        raise NotImplementedError()
+        symbols = np.array(["circle", "square", "triangle-up"])
+
+        fig = make_subplots(rows=1, cols=2, subplot_titles=(
+        f"Gaussian Naive Bayes with accuracy {gnb_acc}",
+        f"Linear Discriminant Analysis with accuracy {lda_acc}"))
+
+        # Add traces for data-points setting symbols and colors
+        lims = np.array([X.min(axis=0), X.max(axis=0)]).T + np.array(
+            [-.4, .4])
+        fig.add_traces([decision_surface(GNB.predict, lims[0], lims[1],
+                                         showscale=False),
+                        decision_surface(lda.predict, lims[0], lims[1],
+                                         showscale=False),
+                        go.Scatter(x=X[:, 0], y=X[:, 1], mode='markers',
+                                   marker=dict(color=Y,
+                                               symbol=symbols[Y]),
+                                   showlegend=False),
+                        go.Scatter(x=X[:, 0], y=X[:, 1], mode='markers',
+                                   marker=dict(color=Y,
+                                               symbol=symbols[Y]),
+                                   showlegend=False)],
+                       rows=[1, 1, 1, 1], cols=[1, 2, 1, 2]) \
+            .update_layout(
+            title_text=f"Part 3 - Bayes Classifiers - {f.split('.')[0]}", )
 
         # Add `X` dots specifying fitted Gaussians' means
-        raise NotImplementedError()
+        fig.add_trace(
+            go.Scatter(x=lda.mu_[:, 0], y=lda.mu_[:, 1], mode='markers',
+                       marker=dict(color="black", symbol="x"),
+                       showlegend=False), row=1, col=2, )
+        fig.add_trace(
+            go.Scatter(x=GNB.mu_[:, 0], y=GNB.mu_[:, 1], mode='markers',
+                       marker=dict(color="black",
+                                   symbol="x"),
+                       showlegend=False), row=1, col=1, )
+
 
         # Add ellipses depicting the covariances of the fitted Gaussians
-        raise NotImplementedError()
+
+        fig.add_trace(get_ellipse(lda.mu_[0], lda.cov_), row=1, col=2, )
+        fig.add_trace(get_ellipse(lda.mu_[1], lda.cov_), row=1, col=2, )
+        fig.add_trace(get_ellipse(lda.mu_[2], lda.cov_), row=1, col=2, )
+        fig.add_trace(get_ellipse(GNB.mu_[0], np.diag(GNB.vars_[0])),
+                      row=1, col=1, )
+        fig.add_trace(get_ellipse(GNB.mu_[1], np.diag(GNB.vars_[1])),
+                      row=1, col=1, )
+        fig.add_trace(get_ellipse(GNB.mu_[2], np.diag(GNB.vars_[2])),
+                      row=1, col=1, )
+
+        fig.show()
+
+
+
+
 
 
 if __name__ == '__main__':
     np.random.seed(0)
     run_perceptron()
     compare_gaussian_classifiers()
+    # for the quiz question
+    # s = [(0,0),(1,0),(2,1),(3,1),(4,1),(5,1),(6,2),(7,2)]
+    x1 = [0,1,2,3,4,5,6,7]
+    y1 = [0,0,1,1,1,1,2,2]
+    gnb1 = GaussianNaiveBayes()
+    gnb1.fit(np.asarray(x1), np.asarray(y1))
+    # print(gnb1.pi_)
+    # print(gnb1.mu_)
+    # S2 = {([1, 1], 0), ([1, 2], 0), ([2, 3], 1), ([2, 4], 1), ([3, 3], 1),
+    #      ([3, 4], 1)}
+    x2 = [[1, 1], [1, 2], [2, 3] , [2, 4] , [3, 3], [3, 4]]
+    y2 = [0,0,1,1,1,1]
+    gnb2 = GaussianNaiveBayes()
+    gnb2.fit(np.asarray(x2), np.asarray(y2))
+    # print(gnb2.vars_)
+
