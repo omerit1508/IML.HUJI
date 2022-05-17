@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import NoReturn
+from typing import Tuple, NoReturn
 from ...base import BaseEstimator
 import numpy as np
 from itertools import product
@@ -80,17 +80,14 @@ class DecisionStump(BaseEstimator):
         Feature values strictly below threshold are predicted as `-sign` whereas values which equal
         to or above the threshold are predicted as `sign`
         """
-        size = X.shape[0]
-        y_pred = np.zeros(size)
-        for i in range(size):
-            if X[i][self.j_] >= self.threshold_:
-                y_pred[i] = self.sign_
-            else:
-                y_pred[i] = -self.sign_
+
+        y_pred = self.sign_ * ((X[:, self.j_] >= self.threshold_) * 2 - 1)
         return y_pred
 
 
-    def _find_threshold(self, values: np.ndarray, labels: np.ndarray, sign: int) -> tuple:
+
+    def _find_threshold(self, values: np.ndarray, labels: np.ndarray, sign: int) -> Tuple[float, float]:
+
         """
         Given a feature vector and labels, find a threshold by which to perform a split
         The threshold is found according to the value minimizing the misclassification
@@ -120,23 +117,19 @@ class DecisionStump(BaseEstimator):
         For every tested threshold, values strictly below threshold are predicted as `-sign` whereas values
         which equal to or above the threshold are predicted as `sign`
         """
-        thr_err = 1.0
-        thr = 0.0
-        samp_size = values.size
-        new_arr = np.zeros(samp_size)
-        for i in range(samp_size):
-            for j in range(samp_size):
-                if values[j] >= values[i]:
-                    new_arr[j] = sign
-                else:
-                    new_arr[j] = -sign
-            temp_mse = MSE(labels, new_arr, True)
-            if temp_mse < thr_err:
-                thr_err = temp_mse
-                thr = values[i]
-        return thr, thr_err
 
-
+        sort_idx = np.argsort(values)
+        # sort to one asix usefull to find threshold
+        values, labels = values[sort_idx], labels[sort_idx]
+        temp_err = np.sum(np.abs(labels[np.sign(labels) == sign])) # if != or == because want to find the
+        # abs for taking |D| because might have -D
+        temp_thr = np.concatenate(
+            [[-np.inf], (values[1:] + values[:-1]) / 2, [np.inf]])
+        # making average between 2 close points to improve the calculate
+        # of the treshold like in the recitation
+        losses = np.append(temp_err, temp_err - np.cumsum(labels * sign))
+        minimal_loss = np.argmin(losses)
+        return temp_thr[minimal_loss], losses[minimal_loss]
 
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
@@ -158,3 +151,28 @@ class DecisionStump(BaseEstimator):
         """
         y_pred = self.predict(X)
         return MSE(y, y_pred)
+
+    # y_temp = np.full(values.size, sign)
+    # thr_err = MSE(np.sign(labels),y_temp)
+    # thr = values[0]
+    # # thr = 0.0
+    # # thr_err = 1.0
+    # samp_size = values.size
+    # # new_arr = np.zeros(samp_size)
+    # for i in range(samp_size):
+    #     y_temp[i]= -sign
+    #     temp_err = MSE(np.sign(labels), y_temp)
+    #     if temp_err<thr_err:
+    #         thr = values[i]
+    #         thr_err = temp_err
+    #     # for j in range(samp_size):
+    #     #     if values[j] >= values[i]:
+    #     #         new_arr[j] = sign
+    #     #     else:
+    #     #         new_arr[j] = -sign
+    #     # temp_mse = MSE(np.sign(labels), new_arr, True)
+    #     # if temp_mse < thr_err:
+    #     #     thr_err = temp_mse
+    #     #     thr = values[i]
+    #
+    # return thr, thr_err
