@@ -12,6 +12,8 @@ from itertools import product
 
 from utils import *
 import plotly.graph_objects as go
+from sklearn.metrics import roc_curve, auc
+from IMLearn.model_selection.cross_validate import cross_validate
 
 
 
@@ -86,7 +88,7 @@ def get_gd_state_recorder_callback() -> Tuple[Callable[[], None], List[np.ndarra
         weights.append(weight)
         norms.append(norm)
 
-    return callback, values, weights
+    return callback, values, weights, norms
 
 
 
@@ -96,11 +98,10 @@ def compare_fixed_learning_rates(init: np.ndarray = np.array([np.sqrt(2), np.e /
                                  etas: Tuple[float] = (1, .1, .01, .001)):
 
     for eta, l in product(etas, [L1, L2]):
-        callback, values, weights = get_gd_state_recorder_callback()
+        callback, values, weights, norms = get_gd_state_recorder_callback()
         GradientDescent(learning_rate=FixedLR(eta), callback= callback).fit(l(init), None, None)
         plot_descent_path(l, np.asarray(weights), "test").show()
-
-
+        norm_fig = go.Figure(go.Scatter(x=np.linspace(0, len(norms)-1, len(norms)), y=norms, mode="lines+markers")).show()
 
 
 
@@ -111,13 +112,25 @@ def compare_exponential_decay_rates(init: np.ndarray = np.array([np.sqrt(2), np.
                                     eta: float = .1,
                                     gammas: Tuple[float] = (.9, .95, .99, 1)):
     # Optimize the L1 objective using different decay-rate values of the exponentially decaying learning rate
-    raise NotImplementedError()
-
+    l1_fig = go.Figure()
+    for gama in gammas:
+        callback, values, weights, norms = get_gd_state_recorder_callback()
+        gd = GradientDescent(ExponentialLR(eta, gama), callback=callback)
+        gd.fit(L1(init), None, None)
+        l1_fig.add_trace(go.Scatter(x=np.linspace(0, len(norms)-1, len(norms)), y=norms, mode="lines+markers"))
+    l1_fig.show()
     # Plot algorithm's convergence for the different values of gamma
-    raise NotImplementedError()
+
+
 
     # Plot descent path for gamma=0.95
-    raise NotImplementedError()
+    for l in [L1, L2]:
+        callback, values, weights, norms = get_gd_state_recorder_callback()
+        gd = GradientDescent(ExponentialLR(eta, gammas[1]),
+                             callback=callback)
+        gd.fit(l(init), None, None)
+        plot_descent_path(l, np.asarray(weights), f'{eta} {l}').show()
+
 
 
 def load_data(path: str = "../datasets/SAheart.data", train_portion: float = .8) -> \
@@ -157,7 +170,26 @@ def fit_logistic_regression():
     X_train, y_train, X_test, y_test = load_data()
 
     # Plotting convergence rate of logistic regression over SA heart disease data
-    raise NotImplementedError()
+    log_reg = LogisticRegression()
+    log_reg.fit(np.asarray(X_train), np.asarray(y_train))
+    y_prob = log_reg.predict_proba(np.asarray(X_test))
+    fpr, tpr, thresholds = roc_curve(np.asarray(y_test), y_prob)
+
+    go.Figure(
+        data=[go.Scatter(x=[0, 1], y=[0, 1], mode="lines",
+                         line=dict(color="black", dash='dash'),
+                         name="Random Class Assignment"),
+              go.Scatter(x=fpr, y=tpr, mode='markers+lines',
+                         text=thresholds, name="", showlegend=False,
+                         marker_size=5,
+                         hovertemplate="<b>Threshold:</b>%{text:.3f}<br>FPR: %{x:.3f}<br>TPR: %{y:.3f}")],
+        layout=go.Layout(
+            title=rf"$\text{{ROC Curve Of Fitted Model - AUC}}={auc(fpr, tpr):.6f}$",
+            xaxis=dict(title=r"$\text{False Positive Rate (FPR)}$"),
+            yaxis=dict(
+                title=r"$\text{True Positive Rate (TPR)}$"))).show()
+
+
 
     # Fitting l1- and l2-regularized logistic regression models, using cross-validation to specify values
     # of regularization parameter
@@ -166,6 +198,6 @@ def fit_logistic_regression():
 
 if __name__ == '__main__':
     np.random.seed(0)
-    compare_fixed_learning_rates()
+    # compare_fixed_learning_rates()
     # compare_exponential_decay_rates()
-    # fit_logistic_regression()
+    fit_logistic_regression()
