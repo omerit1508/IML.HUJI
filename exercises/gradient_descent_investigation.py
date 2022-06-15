@@ -7,8 +7,13 @@ from IMLearn.desent_methods import GradientDescent, FixedLR, ExponentialLR
 from IMLearn.desent_methods.modules import L1, L2
 from IMLearn.learners.classifiers.logistic_regression import LogisticRegression
 from IMLearn.utils import split_train_test
+from itertools import product
 
+
+from utils import *
 import plotly.graph_objects as go
+
+
 
 
 def plot_descent_path(module: Type[BaseModule],
@@ -57,7 +62,7 @@ def plot_descent_path(module: Type[BaseModule],
                                       title=f"GD Descent Path {title}"))
 
 
-def get_gd_state_recorder_callback() -> Tuple[Callable[[], None], List[np.ndarray], List[np.ndarray]]:
+def get_gd_state_recorder_callback() -> Tuple[Callable[[], None], List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     """
     Callback generator for the GradientDescent class, recording the objective's value and parameters at each iteration
 
@@ -73,12 +78,33 @@ def get_gd_state_recorder_callback() -> Tuple[Callable[[], None], List[np.ndarra
     weights: List[np.ndarray]
         Recorded parameters
     """
-    raise NotImplementedError()
+    values = []
+    weights = []
+    norms = []
+    def callback(solver, weight, val, grad, t, eta, norm):
+        values.append(val)
+        weights.append(weight)
+        norms.append(norm)
+
+    return callback, values, weights
+
+
+
 
 
 def compare_fixed_learning_rates(init: np.ndarray = np.array([np.sqrt(2), np.e / 3]),
                                  etas: Tuple[float] = (1, .1, .01, .001)):
-    raise NotImplementedError()
+
+    for eta, l in product(etas, [L1, L2]):
+        callback, values, weights = get_gd_state_recorder_callback()
+        GradientDescent(learning_rate=FixedLR(eta), callback= callback).fit(l(init), None, None)
+        plot_descent_path(l, np.asarray(weights), "test").show()
+
+
+
+
+
+
 
 
 def compare_exponential_decay_rates(init: np.ndarray = np.array([np.sqrt(2), np.e / 3]),
@@ -141,5 +167,5 @@ def fit_logistic_regression():
 if __name__ == '__main__':
     np.random.seed(0)
     compare_fixed_learning_rates()
-    compare_exponential_decay_rates()
-    fit_logistic_regression()
+    # compare_exponential_decay_rates()
+    # fit_logistic_regression()

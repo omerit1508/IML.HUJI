@@ -50,6 +50,7 @@ class LinearRegression(BaseEstimator):
         -----
         Fits model with or without an intercept depending on value of `self.include_intercept_`
         """
+        x_t = np.random.normal(0, 1, size=X.shape[1])
         if self.include_intercept_:
             row, col = X.shape
             X = np.insert(X, 0, 1, axis=1)

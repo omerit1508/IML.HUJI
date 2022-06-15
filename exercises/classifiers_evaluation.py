@@ -98,6 +98,8 @@ def compare_gaussian_classifiers():
 
 
         # Fit models and predict over training set
+        print(X)
+        print(Y)
         lda = LDA()
         lda.fit(X, Y)
         lda_pred = lda.predict(X)
@@ -164,7 +166,7 @@ def compare_gaussian_classifiers():
         fig.add_trace(get_ellipse(GNB.mu_[2], np.diag(GNB.vars_[2])),
                       row=1, col=1, )
 
-        fig.show()
+        # fig.show()
 
 
 
