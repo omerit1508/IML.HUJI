@@ -129,7 +129,7 @@ class GradientDescent:
         for t in range(self.max_iter_):
             w_t_1 = w- self.learning_rate_.lr_step(t=t) * f.compute_jacobian(X=X, y=y)
             norm = np.linalg.norm(w_t_1 - w, ord=2)
-            self.callback_(solver=self, weights=w, val=f.compute_output(X=X, y=y), grad=f.compute_jacobian(X=X, y=y), t=t, eta=self.learning_rate_.lr_step(t=t), norm=norm)
+            self.callback_(solver=self, weight=w, val=f.compute_output(X=X, y=y), grad=f.compute_jacobian(X=X, y=y), t=t, eta=self.learning_rate_.lr_step(t=t), norm=norm)
             f.weights_ = w_t_1
             w_list.append(w_t_1)
             if self.out_type_ == "best":

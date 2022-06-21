@@ -8,6 +8,7 @@ from IMLearn.desent_methods.modules import L1, L2
 from IMLearn.learners.classifiers.logistic_regression import LogisticRegression
 from IMLearn.utils import split_train_test
 from itertools import product
+from IMLearn.metrics import loss_functions
 
 
 from utils import *
@@ -96,12 +97,23 @@ def get_gd_state_recorder_callback() -> Tuple[Callable[[], None], List[np.ndarra
 
 def compare_fixed_learning_rates(init: np.ndarray = np.array([np.sqrt(2), np.e / 3]),
                                  etas: Tuple[float] = (1, .1, .01, .001)):
+    L_dict = {L1: "L1", L2: "L2"}
 
     for eta, l in product(etas, [L1, L2]):
         callback, values, weights, norms = get_gd_state_recorder_callback()
         GradientDescent(learning_rate=FixedLR(eta), callback= callback).fit(l(init), None, None)
-        plot_descent_path(l, np.asarray(weights), "test").show()
-        norm_fig = go.Figure(go.Scatter(x=np.linspace(0, len(norms)-1, len(norms)), y=norms, mode="lines+markers")).show()
+        plot_trajectory = plot_descent_path(l, np.asarray(weights),  f'with eta {eta} on {L_dict[l]} module.')
+        norm_fig = go.Figure(go.Scatter(x=np.linspace(0, len(norms)-1, len(norms)), y=norms, mode="lines+markers"))
+        norm_fig.update_layout(title=f'Convergence rate- norm as function of GD iteration with eta {eta} on {L_dict[l]} module.')
+
+        if l == L1:
+            print("the lowest loss achived when minimizing L1 is: ", min(values))
+        else:
+            print("the lowest loss achived when minimizing L2 is: ", min(values))
+        norm_fig.show()
+        if eta == .01:
+            plot_trajectory.show()
+
 
 
 
@@ -118,18 +130,23 @@ def compare_exponential_decay_rates(init: np.ndarray = np.array([np.sqrt(2), np.
         gd = GradientDescent(ExponentialLR(eta, gama), callback=callback)
         gd.fit(L1(init), None, None)
         l1_fig.add_trace(go.Scatter(x=np.linspace(0, len(norms)-1, len(norms)), y=norms, mode="lines+markers"))
+
+
+    l1_fig.update_layout(title= f'Q-5 Convergenxw rate for all decay rates')
     l1_fig.show()
+     # this is the min loss
     # Plot algorithm's convergence for the different values of gamma
 
 
 
     # Plot descent path for gamma=0.95
+    L_dict = {L1: "L1", L2: "L2"}
     for l in [L1, L2]:
         callback, values, weights, norms = get_gd_state_recorder_callback()
         gd = GradientDescent(ExponentialLR(eta, gammas[1]),
                              callback=callback)
         gd.fit(l(init), None, None)
-        plot_descent_path(l, np.asarray(weights), f'{eta} {l}').show()
+        plot_descent_path(l, np.asarray(weights), f'with eta: {eta} for {L_dict[l]} using exponential decay').show()
 
 
 
@@ -172,8 +189,10 @@ def fit_logistic_regression():
     # Plotting convergence rate of logistic regression over SA heart disease data
     log_reg = LogisticRegression()
     log_reg.fit(np.asarray(X_train), np.asarray(y_train))
-    y_prob = log_reg.predict_proba(np.asarray(X_test))
-    fpr, tpr, thresholds = roc_curve(np.asarray(y_test), y_prob)
+    y_prob = log_reg.predict_proba(np.asarray(X_train))
+    fpr, tpr, thresholds = roc_curve(np.asarray(y_train), y_prob)
+    best_alpha = np.round(thresholds[np.argmax(tpr-fpr)],2)
+    print(best_alpha)
 
     go.Figure(
         data=[go.Scatter(x=[0, 1], y=[0, 1], mode="lines",
@@ -193,11 +212,25 @@ def fit_logistic_regression():
 
     # Fitting l1- and l2-regularized logistic regression models, using cross-validation to specify values
     # of regularization parameter
-    raise NotImplementedError()
+    lambads = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
+    for l in ["l1", "l2"]:
+        train_score_ls = []
+        test_score_ls = []
+        for lam in lambads:
+            log_reg = LogisticRegression(penalty=l, lam=lam)
+            train_score, test_score = cross_validate(log_reg, np.asarray(X_train), np.asarray(y_train), loss_functions.misclassification_error)
+            train_score_ls.append(train_score)
+            test_score_ls.append(test_score)
+        best_lam = lambads[np.argmin(test_score_ls)]
+        reg_of_best_lam = LogisticRegression(penalty=l, lam=best_lam)
+        reg_of_best_lam.fit(np.asarray(X_train), np.asarray(y_train))
+        test_error = reg_of_best_lam.loss(np.asarray(X_test), np.asarray(y_test))
+        print("best lambda is: ", best_lam, "and it's test error is: ", test_error)
+
 
 
 if __name__ == '__main__':
     np.random.seed(0)
-    # compare_fixed_learning_rates()
-    # compare_exponential_decay_rates()
+    compare_fixed_learning_rates()
+    compare_exponential_decay_rates()
     fit_logistic_regression()
